@@ -43,6 +43,8 @@ Sync for modern apps. From the inventors of CRDTs.
 
 ## Quick links
 
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue-ghost.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/alco/tmp-electric/tree/digital-ocean)
+
 - [Website](https://electric-sql.com)
 - [Documentation](https://electric-sql.com/docs)
 - [Introduction](https://electric-sql.com/docs/intro/local-first)
