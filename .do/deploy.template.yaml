@@ -1,0 +1,48 @@
+spec:
+  name: electric-sync-service
+  #  ingress:
+  #    rules:
+  #      - match:
+  #          path: "/proxy"
+  #        component:
+  #          name: "tcp-proxy"
+  services:
+    - name: electric
+      image:
+        registry_type: DOCKER_HUB
+        registry: electricsql
+        repository: electric
+        tag: canary
+      envs:
+        - key: DATABASE_URL
+          value: "postgresql://<user>:<password>@<host>/<dbname>"
+          scope: RUN_TIME
+        - key: DATABASE_REQUIRE_SSL
+          value: "false"
+          scope: RUN_TIME
+        - key: ELECTRIC_INBOUND_MODE
+          value: "direct_writes"
+          scope: RUN_TIME
+        - key: PG_PROXY_PASSWORD
+          scope: RUN_TIME
+        - key: AUTH_MODE
+          value: "insecure"
+          scope: RUN_TIME
+        - key: LOG_LEVEL
+          value: "info"
+          scope: RUN_TIME
+      http_port: 5133
+      internal_ports: [65432]
+      health_check:
+        http_path: /api/status
+      instance_count: 1
+#    - name: tcp-proxy
+#      git:
+#        branch: "deploy-to-do"
+#        repo_clone_url: "https://github.com/electric-sql/electric"
+#      dockerfile_path: ".do/Dockerfile"
+#      envs:
+#        - key: PG_PROXY_PORT
+#          value: "65432"
+#          scope: RUN_TIME
+#

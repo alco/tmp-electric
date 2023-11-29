@@ -48,6 +48,8 @@ Sync for modern apps. From the inventors of CRDTs.
 - [Introduction](https://electric-sql.com/docs/intro/local-first)
 - [Quickstart](https://electric-sql.com/docs/quickstart)
 
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue-ghost.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/electric-sql/electric/tree/deploy-to-do)
+
 ## What is ElectricSQL?
 
 ElectricSQL is a local-first software platform that makes it easy to develop high-quality, modern apps with instant reactivity, realtime multi-user collaboration and conflict-free offline support.
