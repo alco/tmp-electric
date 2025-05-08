@@ -34,6 +34,7 @@ defmodule Electric.Telemetry do
 
       quote(do: unquote(block))
     else
+      IO.puts "TELEMETRY DISABLED"
       if else_block, do: quote(do: unquote(else_block))
     end
   end
