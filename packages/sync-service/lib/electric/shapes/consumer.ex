@@ -601,14 +601,14 @@ defmodule Electric.Shapes.Consumer do
 
     case convert_fragment_changes(changes, stack_id, shape_handle, shape) do
       :includes_truncate ->
-        {handle_txn_with_truncate(xid, state), []}
+        handle_txn_with_truncate(xid, state)
 
       {[], 0} ->
         Logger.debug(fn ->
           "No relevant changes found for #{inspect(shape)} in txn fragment of txn #{xid}"
         end)
 
-        {state, []}
+        state
 
       {reversed_changes, num_changes, last_log_offset} ->
         converted_changes =
