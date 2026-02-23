@@ -691,7 +691,7 @@ defmodule Electric.Shapes.Consumer do
       # Signal commit to storage to allow it to advance its internal txn offset
       writer = ShapeCache.Storage.signal_txn_commit!(txn.xid, writer)
 
-      :ok = notify_new_changes(state, [], txn_fragment.last_log_offset)
+      :ok = notify_new_changes(state, [], state.latest_offset)
 
       lag = calculate_replication_lag(txn_fragment.commit.commit_timestamp)
 
