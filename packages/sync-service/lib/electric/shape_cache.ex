@@ -277,7 +277,7 @@ defmodule Electric.ShapeCache do
 
   @impl GenServer
   def handle_call({:create_or_wait_shape_handle, shape, otel_ctx}, _from, state) do
-    {shape_handle, latest_offset} = maybe_create_shape(shape, otel_ctx, state)
+    {shape_handle, latest_offset} = maybe_create_shape(shape, state.stack_id, otel_ctx)
     Logger.debug("Returning shape id #{shape_handle} for shape #{inspect(shape)}")
     {:reply, {shape_handle, latest_offset}, state}
   end
@@ -297,7 +297,7 @@ defmodule Electric.ShapeCache do
         # TODO: otel ctx from shape log collector?
         {
           :reply,
-          restore_shape_and_dependencies(shape_handle, shape, state, nil),
+          restore_shape_and_dependencies(shape_handle, shape, stack_id, nil),
           state
         }
 
@@ -306,7 +306,7 @@ defmodule Electric.ShapeCache do
     end
   end
 
-  defp maybe_create_shape(shape, otel_ctx, %{stack_id: stack_id} = state) do
+  defp maybe_create_shape(shape, stack_id, otel_ctx) do
     # fetch_handle_by_shape_critical is a slower but guaranteed consistent
     # shape lookup
     with {:ok, shape_handle} <- ShapeStatus.fetch_handle_by_shape_critical(stack_id, shape),
@@ -316,7 +316,7 @@ defmodule Electric.ShapeCache do
       :error ->
         shape_handles =
           shape.shape_dependencies
-          |> Enum.map(&maybe_create_shape(&1, otel_ctx, state))
+          |> Enum.map(&maybe_create_shape(&1, stack_id, otel_ctx))
           |> Enum.map(&elem(&1, 0))
 
         shape = %{shape | shape_dependencies_handles: shape_handles}
@@ -325,7 +325,7 @@ defmodule Electric.ShapeCache do
 
         Logger.info("Creating new shape for #{inspect(shape)} with handle #{shape_handle}")
 
-        {:ok, _pid} = start_shape(shape_handle, shape, state, otel_ctx, :create)
+        {:ok, _pid} = start_shape(shape_handle, shape, stack_id, otel_ctx, :create)
 
         # In this branch of `if`, we're guaranteed to have a newly started shape, so we can be sure about it's
         # "latest offset" because it'll be in the snapshotting stage
@@ -333,9 +333,7 @@ defmodule Electric.ShapeCache do
     end
   end
 
-  defp start_shape(shape_handle, shape, state, otel_ctx, action) do
-    %{stack_id: stack_id} = state
-
+  defp start_shape(shape_handle, shape, stack_id, otel_ctx, action) do
     Enum.zip(shape.shape_dependencies_handles, shape.shape_dependencies)
     |> Enum.with_index(fn {shape_handle, inner_shape}, index ->
       materialized_type =
@@ -372,14 +370,14 @@ defmodule Electric.ShapeCache do
   # start_shape assumes that any dependent shapes already have running consumers
   # so we need to start those. this may be something we can do lazily: i.e.
   # only starting dependent shapes when they receive a write
-  defp restore_shape_and_dependencies(shape_handle, shape, state, otel_ctx) do
+  defp restore_shape_and_dependencies(shape_handle, shape, stack_id, otel_ctx) do
     [{shape_handle, shape}]
     |> build_shape_dependencies(MapSet.new())
     |> elem(0)
     |> Enum.reduce_while({:ok, %{}}, fn {handle, shape}, {:ok, acc} ->
-      case Electric.Shapes.ConsumerRegistry.whereis(state.stack_id, handle) do
+      case Electric.Shapes.ConsumerRegistry.whereis(stack_id, handle) do
         nil ->
-          case start_shape(handle, shape, state, otel_ctx, :restore) do
+          case start_shape(handle, shape, stack_id, otel_ctx, :restore) do
             {:ok, pid} ->
               {:cont, {:ok, Map.put(acc, handle, pid)}}
 
@@ -403,7 +401,7 @@ defmodule Electric.ShapeCache do
 
           # If we got an error starting any of the dependent shapes then we
           # remove the outer shape too
-          clean_shape(shape_handle, state.stack_id)
+          clean_shape(shape_handle, stack_id)
         end
 
         {:error, "Failed to start consumer for #{shape_handle}"}
