@@ -145,7 +145,7 @@ defmodule Electric.Shapes.Consumer.State do
   def new(stack_id, shape_handle, shape) do
     stack_id
     |> new(shape_handle)
-    |> initialize_shape(shape)
+    |> initialize_shape(shape, %{})
   end
 
   @spec new(Electric.stack_id(), Shape.handle()) :: uninitialized_t()
@@ -163,16 +163,21 @@ defmodule Electric.Shapes.Consumer.State do
     }
   end
 
-  @spec initialize_shape(uninitialized_t(), Shape.t()) :: uninitialized_t()
-  def initialize_shape(%__MODULE__{} = state, shape) do
+  @spec initialize_shape(uninitialized_t(), Shape.t(), map()) :: uninitialized_t()
+  def initialize_shape(%__MODULE__{} = state, shape, start_config) do
     %{
       state
       | shape: shape,
         or_with_subquery?: has_or_with_subquery?(shape),
         not_with_subquery?: has_not_with_subquery?(shape),
         # Enable direct fragment-to-storage streaming for shapes without subquery dependencies
+        # and if the current shape itself isn't an inner shape of a shape with subqueries.
         write_unit:
-          if(shape.shape_dependencies == [], do: @write_unit_txn_fragment, else: @write_unit_txn)
+          if shape.shape_dependencies != [] or Map.get(start_config, :is_subquery_shape?, false) do
+            @write_unit_txn
+          else
+            @write_unit_txn_fragment
+          end
     }
   end
 

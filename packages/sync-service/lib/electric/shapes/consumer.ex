@@ -102,7 +102,7 @@ defmodule Electric.Shapes.Consumer do
   def init(config) do
     activate_mocked_functions_from_test_process()
 
-    %{stack_id: stack_id, shape_handle: shape_handle, otel_ctx: otel_ctx} = config
+    %{stack_id: stack_id, shape_handle: shape_handle} = config
 
     Process.set_label({:consumer, shape_handle})
     Process.flag(:trap_exit, true)
@@ -111,12 +111,11 @@ defmodule Electric.Shapes.Consumer do
     Logger.metadata(metadata)
     Electric.Telemetry.Sentry.set_tags_context(metadata)
 
-    {:ok, State.new(stack_id, shape_handle),
-     {:continue, {:init_consumer, config.action, otel_ctx}}}
+    {:ok, State.new(stack_id, shape_handle), {:continue, {:init_consumer, config}}}
   end
 
   @impl GenServer
-  def handle_continue({:init_consumer, action, otel_ctx}, state) do
+  def handle_continue({:init_consumer, config}, state) do
     %{
       stack_id: stack_id,
       shape_handle: shape_handle
@@ -124,7 +123,7 @@ defmodule Electric.Shapes.Consumer do
 
     {:ok, shape} = ShapeCache.ShapeStatus.fetch_shape_by_handle(stack_id, shape_handle)
 
-    state = State.initialize_shape(state, shape)
+    state = State.initialize_shape(state, shape, config)
 
     stack_storage = ShapeCache.Storage.for_stack(stack_id)
     storage = ShapeCache.Storage.for_shape(shape_handle, stack_storage)
@@ -139,7 +138,7 @@ defmodule Electric.Shapes.Consumer do
 
     state = State.initialize(state, storage, writer)
 
-    if all_materializers_alive?(state) && subscribe(state, action) do
+    if all_materializers_alive?(state) && subscribe(state, config.action) do
       Logger.debug("Writer for #{shape_handle} initialized")
 
       # We start the snapshotter even if there's a snapshot because it also performs the call
@@ -156,7 +155,7 @@ defmodule Electric.Shapes.Consumer do
             shape: shape,
             shape_handle: shape_handle,
             storage: storage,
-            otel_ctx: otel_ctx
+            otel_ctx: config.otel_ctx
           }
         )
 
