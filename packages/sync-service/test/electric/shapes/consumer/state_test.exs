@@ -105,6 +105,41 @@ defmodule Electric.Shapes.Consumer.StateTest do
     end
   end
 
+  describe "initialize_shape/3 write_unit" do
+    setup [:with_stack_id_from_test]
+
+    test "sets write_unit=txn_fragment for standalone shapes", %{stack_id: stack_id} do
+      shape = %Shape{root_table: {"public", "items"}, root_table_id: 1}
+      state = State.new(stack_id, "test-handle") |> State.initialize_shape(shape, %{})
+
+      assert state.write_unit == :txn_fragment
+    end
+
+    test "sets write_unit=txn when shape has dependencies", %{stack_id: stack_id} do
+      dep_shape = %Shape{root_table: {"public", "parent"}, root_table_id: 2}
+
+      shape = %Shape{
+        root_table: {"public", "items"},
+        root_table_id: 1,
+        shape_dependencies: [dep_shape]
+      }
+
+      state = State.new(stack_id, "test-handle") |> State.initialize_shape(shape, %{})
+
+      assert state.write_unit == :txn
+    end
+
+    test "sets write_unit=txn when is_subquery_shape? is true", %{stack_id: stack_id} do
+      shape = %Shape{root_table: {"public", "items"}, root_table_id: 1}
+
+      state =
+        State.new(stack_id, "test-handle")
+        |> State.initialize_shape(shape, %{is_subquery_shape?: true})
+
+      assert state.write_unit == :txn
+    end
+  end
+
   describe "initialize/3" do
     setup [:with_stack_id_from_test, :with_in_memory_storage]
 
