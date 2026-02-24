@@ -353,10 +353,14 @@ defmodule Electric.ShapeCache do
       })
     end)
 
-    case Shapes.DynamicConsumerSupervisor.start_shape_consumer(
-           stack_id,
-           Map.put(opts, :shape_handle, shape_handle)
-         ) do
+    feature_flags = Electric.StackConfig.lookup(stack_id, :feature_flags, [])
+
+    start_opts =
+      opts
+      |> Map.put(:shape_handle, shape_handle)
+      |> Map.put(:subqueries_enabled_for_stack?, "allow_subqueries" in feature_flags)
+
+    case Shapes.DynamicConsumerSupervisor.start_shape_consumer(stack_id, start_opts) do
       {:ok, consumer_pid} ->
         # Now that the consumer process for this shape is running, we can finish initializing
         # the ShapeStatus record by recording a "last_read" timestamp on it.

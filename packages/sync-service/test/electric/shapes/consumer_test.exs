@@ -597,6 +597,10 @@ defmodule Electric.Shapes.ConsumerTest do
         Map.get(ctx, :hibernate_after, 10_000)
       )
 
+      if not Map.get(ctx, :allow_subqueries, true) do
+        Electric.StackConfig.put(ctx.stack_id, :feature_flags, [])
+      end
+
       :ok
     end
 
@@ -671,6 +675,7 @@ defmodule Electric.Shapes.ConsumerTest do
                get_log_items_from_storage(LogOffset.last_before_real_offsets(), shape_storage)
     end
 
+    @tag allow_subqueries: false
     test "duplicate txn fragment handling is idempotent", ctx do
       {shape_handle, _} = ShapeCache.get_or_create_shape_handle(@shape1, ctx.stack_id)
       :started = ShapeCache.await_snapshot_start(shape_handle, ctx.stack_id)
@@ -908,7 +913,9 @@ defmodule Electric.Shapes.ConsumerTest do
       assert_receive {:flush_boundary_updated, ^tx_offset}
     end
 
-    @tag delay_snapshot_creation?: true, with_pure_file_storage_opts: [flush_period: 1]
+    @tag allow_subqueries: false,
+         delay_snapshot_creation?: true,
+         with_pure_file_storage_opts: [flush_period: 1]
     test "transaction fragments are buffered until snapshot xmin is known", ctx do
       register_as_replication_client(ctx.stack_id)
 
@@ -1119,7 +1126,9 @@ defmodule Electric.Shapes.ConsumerTest do
       assert {:ok, last_log_offset} == Storage.fetch_latest_offset(shape_storage)
     end
 
-    @tag pg_snapshot: {10, 13, [10]}, with_pure_file_storage_opts: [flush_period: 1]
+    @tag allow_subqueries: false,
+         pg_snapshot: {10, 13, [10]},
+         with_pure_file_storage_opts: [flush_period: 1]
     test "fragments that belong to transactions already included in the snapshot are skipped",
          ctx do
       register_as_replication_client(ctx.stack_id)
@@ -1535,7 +1544,7 @@ defmodule Electric.Shapes.ConsumerTest do
       assert [] == :ets.tab2list(table)
     end
 
-    @tag with_pure_file_storage_opts: [flush_period: 1]
+    @tag allow_subqueries: false, with_pure_file_storage_opts: [flush_period: 1]
     test "writes txn fragments to storage immediately but keeps txn boundaries when flushing",
          ctx do
       {shape_handle, _} = ShapeCache.get_or_create_shape_handle(@shape1, ctx.stack_id)
